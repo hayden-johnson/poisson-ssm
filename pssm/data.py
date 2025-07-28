@@ -1,10 +1,11 @@
-import tqdm
+
 import torch
+from tqdm import tqdm
 from torch.utils.data import DataLoader
 
-from pvae.data import cumulative_spike_matrix
+from pssm.utils import cumulative_spike_matrix
 
-def create_decoder_dataset(model, dataset, n_timesteps=100, n_repeats=10, max_samples=1000, device='cpu'):
+def create_decoder_dataset(model, dataset, n_timesteps=100, n_repeats=10, max_samples=1000, batch_size=100, device='cpu'):
     """
     Create data of encoder spike observations for decoder training.
     """
@@ -15,7 +16,7 @@ def create_decoder_dataset(model, dataset, n_timesteps=100, n_repeats=10, max_sa
     limited_dataset = torch.utils.data.Subset(dataset, range(min(max_samples, len(dataset))))
     
     # Use DataLoader for better batching
-    fast_loader = DataLoader(limited_dataset, batch_size=100, shuffle=False, num_workers=0)
+    fast_loader = DataLoader(limited_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
     
     all_data = []
     all_labels = []
