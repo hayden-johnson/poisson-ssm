@@ -33,7 +33,7 @@ class Poisson:
         return r-rdr+rdr*logdr
 
 # Minimal Poisson VAE
-# TODO: add convolutional layers?
+# NOTE: consider adding convolutional layers?
 class PVAE(nn.Module):
     def __init__(self):
         super(PVAE, self).__init__()
@@ -65,6 +65,7 @@ class PL_PVAE(pl.LightningModule):
             'lr': 1e-3,
         }
         self.beta = 0.0
+        print(len_train_dl)
         self.len_train_dl = len_train_dl
 
     def forward(self, x):

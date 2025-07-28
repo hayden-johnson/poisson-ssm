@@ -8,9 +8,11 @@ import os
 import sys
 import time
 import torch
+import torch.nn as nn
 import lightning as pl
 from torchvision import datasets
 from torch.utils.data import DataLoader
+
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -20,7 +22,7 @@ from pssm.decoder import MLP
 from pssm.data import create_decoder_dataset
 from pssm.pssm import PoissonSSM
 
-
+# Build function to set up the encoder, decoder, and datasets
 def build(data_dir=None, load_encoder=False, load_decoder=False, load_encoder_data=False, load_decoder_dataset=False):
     ## SET UP DIRECTORIES
     name = "pssm"
@@ -95,7 +97,7 @@ def build(data_dir=None, load_encoder=False, load_decoder=False, load_encoder_da
             print("Creating decoder dataset...", end=' ')
             device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
             # create decoder dataset with encoder model
-            decoder_data, decoder_labels = create_decoder_dataset(encoder, ds_train, n_timesteps=100, n_repeats=10, max_samples=100, batch_size=10, device=device)
+            decoder_data, decoder_labels = create_decoder_dataset(encoder, ds_train, n_timesteps=100, n_repeats=10, max_samples=10, batch_size=5, device=device)
             # create dataload for decoder
             decoder_ds = torch.utils.data.TensorDataset(decoder_data, decoder_labels)
             print("Done.")
@@ -110,9 +112,25 @@ def build(data_dir=None, load_encoder=False, load_decoder=False, load_encoder_da
         decoder_dl = DataLoader(decoder_ds, batch_size=bsize, shuffle=True, num_workers=4)
 
         print("Training decoder...", end=' ')
-        # train decoder
-        decoder = MLP()
-        # TODO: write code for training the decoder
+        input_size = 128    # Number of neurons
+        output_size = 10    # Number of classes
+
+        decoder = MLP(input_size=input_size, output_size=output_size)
+
+        # Define a loss function and optimizer
+        criterion = nn.CrossEntropyLoss()  # Instead of logistic regression, since logistic is for binary classification
+        optimizer = torch.optim.Adam(decoder.parameters(), lr=0.001)
+
+        decoder.fit(train_loader=decoder_dl, optimizer=optimizer, criterion=criterion, num_epochs=10)
+        print("Done.")
+
+        # Save decoder to checkpoint
+        try:
+            print("Saving decoder checkpoint...", end=' ')
+            torch.save(decoder.state_dict(), f"{checkpoint_dir}/decoder.ckpt")
+            print("Done.")
+        except Exception as e:
+            print(f"Failed to save decoder checkpoint: {e}")
 
     ## CREATE COMPOSITE MODEL
     pssm = PoissonSSM(encoder, decoder)
