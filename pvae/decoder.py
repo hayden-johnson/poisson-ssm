@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+# MLP decoder going from cumulative spikes -> p(label  | spikes)
 class MLP(nn.Module):
     def __init__(self, input_size, output_size):
         super(MLP, self).__init__()
