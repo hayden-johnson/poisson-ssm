@@ -94,17 +94,21 @@ def build(data_dir=None, load_encoder=False, load_decoder=False, load_encoder_da
             # load decoder dataset
             raise NotImplementedError("Loading decoder dataset from file is not implemented yet.")
         else:
+            n_timesteps = 100
+            n_repeats = 5
+            max_samples = 1000
+            batch_size = 100
             print("Creating decoder dataset...", end=' ')
             device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
             # create decoder dataset with encoder model
-            decoder_data, decoder_labels = create_decoder_dataset(encoder, ds_train, n_timesteps=100, n_repeats=10, max_samples=10, batch_size=5, device=device)
+            decoder_data, decoder_labels = create_decoder_dataset(encoder, ds_train, n_timesteps=n_timesteps, n_repeats=n_repeats, max_samples=max_samples, batch_size=batch_size, device=device)
             # create dataload for decoder
             decoder_ds = torch.utils.data.TensorDataset(decoder_data, decoder_labels)
             print("Done.")
             # save out dataset
             try:
                 print("Saving decoder dataset...", end=' ')
-                torch.save(decoder_ds, f"{checkpoint_dir}/decoder_dataset.pt")
+                torch.save(decoder_ds, f"{checkpoint_dir}/decoder_dataset_{n_timesteps}_{n_repeats}_{max_samples}_{batch_size}.pt")
                 print("Done.")
             except Exception as e:
                 print(f"Failed to save decoder dataset: {e}")
