@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "poisson-ssm"
+version = "0.1.0"
+description = "Short description"
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "MIT" }
+authors = [{ name="Hayden Johnson", email="hayden.johnson@student.kuleuven.be" }]
+dependencies = [
+  # e.g. "numpy>=1.20"
+]
+
+[tool.setuptools.packages.find]
+where   = ["."]
+include = ["poisson_ssm*"]
