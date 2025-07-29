@@ -23,15 +23,21 @@ from pssm.data import create_decoder_dataset
 from pssm.pssm import PoissonSSM
 
 # Build function to set up the encoder, decoder, and datasets
-def build(data_dir=None, load_encoder=False, load_decoder=False, load_encoder_data=False, load_decoder_dataset=False):
+def build():
     ## SET UP DIRECTORIES
     name = "pssm"
     root_dir = "./data"
-    data_dir = f"{root_dir}/Datasets" if data_dir is None else data_dir
+    data_dir = f"{root_dir}/Datasets"
     root_dir = f"{root_dir}/{name}"
 
     load_encoder = True
     encoder_dir = "./networks/encoder.ckpt"
+
+    load_decoder = True
+    load_decoder_path = "./networks/decoder.ckpt"
+
+    load_decoder_dataset = True
+    decoder_dataset_path = "./data/Datasets/decoder/decoder_dataset_100_5_1000_100.pt"
 
     # make new checkpoint directory with timestamp
     timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -86,13 +92,25 @@ def build(data_dir=None, load_encoder=False, load_decoder=False, load_encoder_da
     ## SET UP DECODER
     if load_decoder:
         print("Loading decoder from checkpoint...", end=' ')
-        raise NotImplementedError("Loading decoder from file is not implemented yet.")
+        try:
+            decoder = MLP(input_size=128, output_size=10)
+            decoder.load_state_dict(torch.load(load_decoder_path))
+            print("Done.")
+        except Exception as e:
+            print(f"Failed to load decoder from checkpoint: {e}")
+            sys.exit(1)
 
     else:
         if load_decoder_dataset:
             print("Loading decoder dataset from file...", end=' ')
             # load decoder dataset
-            raise NotImplementedError("Loading decoder dataset from file is not implemented yet.")
+            try:
+                decoder_ds = torch.load(decoder_dataset_path)
+                print("Done.")
+            except Exception as e:
+                print(f"Failed to load decoder dataset: {e}")
+                sys.exit(1)
+            #raise NotImplementedError("Loading decoder dataset from file is not implemented yet.")
         else:
             n_timesteps = 100
             n_repeats = 5
@@ -138,13 +156,15 @@ def build(data_dir=None, load_encoder=False, load_decoder=False, load_encoder_da
 
     ## CREATE COMPOSITE MODEL
     pssm = PoissonSSM(encoder, decoder)
-    return pssm
+    return pssm, ds_test
 
-def evaluate(pssm):
-    pass
+def evaluate(pssm, ds_test):
+   pssm.get_rts(ds_test[0][0], threshold=0.25, n_repeats=1000)
 
 if __name__ == "__main__":
     print("Starting PSSM training pipeline...")
-    pssm = build()
-    evaluate(pssm)
+    pssm, ds_test = build()
+    pssm.encoder.to('cpu')  # Ensure encoder is on CPU for evaluation
+    pssm.decoder.to('cpu')  # Ensure decoder is on CPU for evaluation
+    evaluate(pssm, ds_test)
     print("Done!")
