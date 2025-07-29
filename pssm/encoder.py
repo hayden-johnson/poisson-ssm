@@ -1,6 +1,7 @@
 import math
 import torch
 import torch.nn as nn
+import lightning as pl
 
 # Poisson distribution class for sampling and KL divergence calculation
 class Poisson:
@@ -32,7 +33,7 @@ class Poisson:
         return r-rdr+rdr*logdr
 
 # Minimal Poisson VAE
-# TODO: add convolutional layers?
+# NOTE: consider adding convolutional layers?
 class PVAE(nn.Module):
     def __init__(self):
         super(PVAE, self).__init__()
@@ -56,7 +57,7 @@ class PVAE(nn.Module):
     
 # Lightning module for training the PVAE
 class PL_PVAE(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, len_train_dl=1):
         super(PL_PVAE, self).__init__()
         self.model = PVAE()
         self.opt = torch.optim.Adam
@@ -64,12 +65,14 @@ class PL_PVAE(pl.LightningModule):
             'lr': 1e-3,
         }
         self.beta = 0.0
+        print(len_train_dl)
+        self.len_train_dl = len_train_dl
 
     def forward(self, x):
         return self.model(x[0].flatten(1))
     
     def training_step(self, batch, batch_idx):
-        epoch = self.current_epoch + batch_idx/len(train_dl)
+        epoch = self.current_epoch + batch_idx/self.len_train_dl
         self.beta = min(5.0, 5*epoch/250)
         self.model.t = max((1.0 - 0.95*epoch/250), 0.05)
         self.log('beta', self.beta)

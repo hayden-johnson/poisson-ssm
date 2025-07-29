@@ -9,45 +9,37 @@ class MLP(nn.Module):
         self.fc2 = nn.Linear(64, 32)
         self.fc3 = nn.Linear(32, output_size)
         self.relu = nn.ReLU()
-        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
-        x = self.softmax(self.fc3(x))
-        return x
+        return self.fc3(x)
     
-    def train(self, train_loader, num_epochs=100):
+    def fit(self, train_loader, optimizer, criterion, num_epochs=100):
+        self.train()
         for epoch in range(num_epochs):
             for inputs, labels in train_loader:
+                                
+                inputs = inputs.float()  # Ensure inputs are float
+                labels = labels.long()   # Ensure labels are long
+                
                 optimizer.zero_grad()
                 outputs = self(inputs)
+                
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
             print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
             
     def evaluate(self, test_loader):
+        self.eval()
         correct = 0
         total = 0
         with torch.no_grad():
             for inputs, labels in test_loader:
                 outputs = self(inputs)
-                _, predicted = torch.max(outputs.data, 1)
+                _, predicted = torch.max(outputs, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
-        print(f'Accuracy of the model on the test set: {100 * correct / total:.2f}%')
+        print(f'Accuracy: {100 * correct / total:.2f}%')
     
-
-def train_encoder():
-    # Create an instance of the MLP
-    mlp = MLP(input_size=input_size, output_size=output_size)
-    # Define a loss function and optimizer
-    criterion = nn.CrossEntropyLoss()  # Instead of logistic regression, since logistic is for binary classification
-    optimizer = torch.optim.Adam(mlp.parameters(), lr=0.001)
-
-    # Train the MLP
-    mlp.train(spike_trains, num_epochs=100)
-
-    # Evaluate the MLP
-    mlp.evaluate(spike_train_loader)
