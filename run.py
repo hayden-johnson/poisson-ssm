@@ -7,6 +7,10 @@ Run this from the project root directory.
 import os
 import sys
 import time
+
+from tqdm import trange
+from matplotlib import pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
 import lightning as pl
@@ -155,16 +159,44 @@ def build():
             print(f"Failed to save decoder checkpoint: {e}")
 
     ## CREATE COMPOSITE MODEL
+    print("Creating PoissonSSM model...", end=' ')
     pssm = PoissonSSM(encoder, decoder)
+    print("Done.")
     return pssm, ds_test
 
 def evaluate(pssm, ds_test):
-   pssm.get_rts(ds_test[0][0], threshold=0.25, n_repeats=1000)
+   print("running evaluation...")
+   mean_rts = []
+   for i in trange(250):
+       img = ds_test[i][0]
+       rts,_,_ = pssm.get_rts(img, threshold=0.25, n_repeats=250, plot_results=False)
+       mean_rts.append(rts.mean())
+
+   # show imgs for top 10 mean rts in a grid
+   top_10_indices = np.argsort(mean_rts)[-10:]
+   
+   fig, axes = plt.subplots(2, 5, figsize=(15, 6))
+   fig.suptitle('Top 10 Images with Highest Mean Reaction Times', fontsize=16)
+   
+   for idx, i in enumerate(top_10_indices):
+       row = idx // 5
+       col = idx % 5
+       img = ds_test[i][0]
+       
+       # Reshape flattened image back to 28x28 for display
+       axes[row, col].imshow(img.reshape(28, 28), cmap='gray')
+       axes[row, col].set_title(f"RT: {mean_rts[i]:.4f}")
+       axes[row, col].axis('off')  # Remove axis ticks
+   
+   plt.tight_layout()
+   plt.show()
 
 if __name__ == "__main__":
     print("Starting PSSM training pipeline...")
     pssm, ds_test = build()
     pssm.encoder.to('cpu')  # Ensure encoder is on CPU for evaluation
     pssm.decoder.to('cpu')  # Ensure decoder is on CPU for evaluation
-    evaluate(pssm, ds_test)
+    rts,_,_ = pssm.get_rts(ds_test[0][0], threshold=0.25, n_repeats=100, plot_results=True)
+
+    #evaluate(pssm, ds_test)
     print("Done!")
