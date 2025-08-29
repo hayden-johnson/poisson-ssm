@@ -35,16 +35,16 @@ class Poisson:
 # Minimal Poisson VAE
 # NOTE: consider adding convolutional layers?
 class PVAE(nn.Module):
-    def __init__(self):
+    def __init__(self, n_neurons):
         super(PVAE, self).__init__()
         self.encode = nn.Sequential(
-            nn.Linear(784, 128),
+            nn.Linear(784, n_neurons),
         )
         self.decode = nn.Sequential(
-            nn.Linear(128, 784),
+            nn.Linear(n_neurons, 784),
             nn.Sigmoid(),
         )
-        self.prior = nn.Parameter(torch.zeros((1, 128)))
+        self.prior = nn.Parameter(torch.zeros((1, n_neurons)))
         self.t = 1.0 #temperature
 
     def forward(self, x):
@@ -57,9 +57,10 @@ class PVAE(nn.Module):
     
 # Lightning module for training the PVAE
 class PL_PVAE(pl.LightningModule):
-    def __init__(self, len_train_dl=1):
+    def __init__(self, n_neurons, len_train_dl=1):
         super(PL_PVAE, self).__init__()
-        self.model = PVAE()
+        self.save_hyperparameters() 
+        self.model = PVAE(n_neurons)
         self.opt = torch.optim.Adam
         self.opt_params = {
             'lr': 1e-3,

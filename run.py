@@ -27,7 +27,7 @@ from pssm.data import create_decoder_dataset
 from pssm.pssm import PoissonSSM
 
 # Build function to set up the encoder, decoder, and datasets
-def build(load_encoder_path=None, load_decoder_path=None, load_decoder_dataset_path=None):
+def build(n_neurons, load_encoder_path=None, load_decoder_path=None, load_decoder_dataset_path=None, ):
     ## SET UP DIRECTORIES
     name = "pssm"
     root_dir = "./data"
@@ -73,15 +73,17 @@ def build(load_encoder_path=None, load_decoder_path=None, load_decoder_dataset_p
     ## SET UP ENCODER
     if load_encoder:
         print("Loading encoder from checkpoint...", end=' ')
+        
         try:
             encoder = PL_PVAE.load_from_checkpoint(load_encoder_path)
+            print("encoder loaded with n_neurons =", encoder.model.prior.shape[1])
             print("Done.")
         except Exception as e:
             print(f"Failed to load encoder from checkpoint: {e}")
             sys.exit(1)
     else:
         print("Training encoder...", end=' ')
-        encoder = PL_PVAE(len(train_dl))
+        encoder = PL_PVAE(n_neurons, len(train_dl))
         trainer_args = {
             "callbacks": [pl.pytorch.callbacks.ModelCheckpoint(dirpath=checkpoint_dir, monitor='val_elbo', save_top_k=1, mode='min', verbose=True)],
             "accelerator": "cpu" if device == 'cpu' else "gpu",
@@ -92,12 +94,13 @@ def build(load_encoder_path=None, load_decoder_path=None, load_decoder_dataset_p
         trainer = pl.Trainer(**trainer_args, default_root_dir=checkpoint_dir, max_epochs=55, num_sanity_val_steps=0)
         trainer.fit(encoder, val_dataloaders=val_dl, train_dataloaders=train_dl)
         print("Done.")
+        
 
     ## SET UP DECODER
     if load_decoder:
         print("Loading decoder from checkpoint...", end=' ')
         try:
-            decoder = MLP(input_size=128, output_size=10)
+            decoder = MLP(input_size=n_neurons, output_size=10)
             decoder.load_state_dict(torch.load(load_decoder_path, weights_only=True))
             print("Done.")
         except Exception as e:
@@ -124,13 +127,17 @@ def build(load_encoder_path=None, load_decoder_path=None, load_decoder_dataset_p
             device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
             # create decoder dataset with encoder model
             decoder_data, decoder_labels = create_decoder_dataset(encoder, ds_train, n_timesteps=n_timesteps, n_repeats=n_repeats, max_samples=max_samples, batch_size=batch_size, device=device)
+            
+            print("decoder data shape:", decoder_data.shape)
+            print("decoder labels shape:", decoder_labels.shape)
+            
             # create dataload for decoder
             decoder_ds = torch.utils.data.TensorDataset(decoder_data, decoder_labels)
             print("Done.")
             # save out dataset
             try:
                 print("Saving decoder dataset...", end=' ')
-                torch.save(decoder_ds, f"{checkpoint_dir}/decoder_dataset_{n_timesteps}_{n_repeats}_{max_samples}_{batch_size}.pt")
+                torch.save(decoder_ds, f"{checkpoint_dir}/decoder_dataset_{n_timesteps}_{n_repeats}_{max_samples}_{batch_size}_neurons{n_neurons}.pt")
                 print("Done.")
             except Exception as e:
                 print(f"Failed to save decoder dataset: {e}")
@@ -138,7 +145,7 @@ def build(load_encoder_path=None, load_decoder_path=None, load_decoder_dataset_p
         decoder_dl = DataLoader(decoder_ds, batch_size=bsize, shuffle=True, num_workers=4)
 
         print("Training decoder...", end=' ')
-        input_size = 128    # Number of neurons
+        input_size = n_neurons    # Number of neurons
         output_size = 10    # Number of classes
 
         decoder = MLP(input_size=input_size, output_size=output_size)
@@ -153,7 +160,7 @@ def build(load_encoder_path=None, load_decoder_path=None, load_decoder_dataset_p
         # Save decoder to checkpoint
         try:
             print("Saving decoder checkpoint...", end=' ')
-            torch.save(decoder.state_dict(), f"{checkpoint_dir}/decoder.ckpt")
+            torch.save(decoder.state_dict(), f"{checkpoint_dir}/decoder_neurons{n_neurons}.ckpt")
             print("Done.")
         except Exception as e:
             print(f"Failed to save decoder checkpoint: {e}")
@@ -198,12 +205,12 @@ if __name__ == "__main__":
     torch.manual_seed(SEED)
     np.random.seed(SEED)
 
-    pssm, ds_test = build()
+    pssm, ds_test = build(n_neurons=512)
     pssm.encoder.to('cpu')  # Ensure encoder is on CPU for evaluation
     pssm.decoder.to('cpu')  # Ensure decoder is on CPU for evaluation
 
     print(ds_test[0][1])
-    rts,_,_ = pssm.get_rts(ds_test[0][0], threshold=0.2, n_repeats=2500, plot_results=True)
+    rts,_,_,_ = pssm.get_rts(ds_test[0][0], threshold=0.2, n_repeats=2500, plot_results=True)
 
     #evaluate(pssm, ds_test)
     print("Done!")
