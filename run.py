@@ -205,7 +205,7 @@ if __name__ == "__main__":
     torch.manual_seed(SEED)
     np.random.seed(SEED)
 
-    pssm, ds_test = build(n_neurons=512)
+    pssm, ds_test = build(n_neurons=2048)
     pssm.encoder.to('cpu')  # Ensure encoder is on CPU for evaluation
     pssm.decoder.to('cpu')  # Ensure decoder is on CPU for evaluation
 
